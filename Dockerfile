@@ -35,9 +35,9 @@ RUN git clone https://github.com/kijai/ComfyUI-KJNodes.git
 
 # ---- Çalışma alanı ----
 WORKDIR /workspace
-COPY workflow.json ./workflow.json
-COPY rp_handler.py ./rp_handler.py
-COPY start.sh ./start.sh
+COPY ./workflow.json /workspace/workflow.json
+COPY ./rp_handler.py /workspace/rp_handler.py
+COPY ./start.sh /workspace/start.sh
 RUN chmod +x /workspace/start.sh
 
 EXPOSE 8188
