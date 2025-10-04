@@ -1,5 +1,8 @@
-# ---- Base CUDA Image ----
-FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
+# ============================================================
+#  WAN 2.2 Image-to-Video Serverless Dockerfile (ComfyUI base)
+# ============================================================
+
+FROM nvidia/cuda:12.4.1-cudnn8-devel-ubuntu22.04
 
 # ---- Environment ----
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -20,9 +23,9 @@ RUN python3.10 -m venv /venv
 ENV PATH="/venv/bin:$PATH"
 RUN pip install --upgrade pip
 
-# ---- Torch & Base Deps ----
-RUN pip install torch==2.4.1+cu124 torchvision==0.19.1+cu124 --extra-index-url https://download.pytorch.org/whl/cu124
-RUN pip install runpod requests accelerate diffusers transformers safetensors moviepy websocket-client opencv-python-headless "numpy<2"
+# ---- Torch + Deps ----
+RUN pip install torch==2.4.1+cu124 torchvision==0.19.1+cu124 torchaudio==2.4.1 --extra-index-url https://download.pytorch.org/whl/cu124
+RUN pip install runpod requests accelerate diffusers transformers safetensors moviepy websocket-client ftfy sageattention
 
 # ---- ComfyUI ----
 WORKDIR /workspace
@@ -35,20 +38,18 @@ RUN pip install -r requirements.txt
 WORKDIR /workspace/ComfyUI/custom_nodes
 RUN git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
 RUN git clone https://github.com/kijai/ComfyUI-KJNodes.git
-RUN git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git
+# WAN Video Wrapper Node (gerekli!)
+RUN git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git && \
+    cd ComfyUI-WanVideoWrapper && pip install -r requirements.txt || true
 
 # ---- Back to workspace ----
 WORKDIR /workspace
 
-# ---- Copy our files ----
-COPY ./workflow.json /workflow.json
-COPY ./rp_handler.py /rp_handler.py
-COPY ./start.sh /start.sh
+# ---- Copy app files ----
+COPY workflow.json /workspace/workflow.json
+COPY rp_handler.py /workspace/rp_handler.py
+COPY start.sh /workspace/start.sh
+RUN chmod +x /workspace/start.sh
 
-RUN chmod +x /start.sh
-
-# ---- Expose API ----
 EXPOSE 8188
-
-# ---- Start ----
-ENTRYPOINT ["/bin/bash", "/start.sh"]
+ENTRYPOINT ["/bin/bash", "/workspace/start.sh"]
