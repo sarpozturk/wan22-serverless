@@ -2,7 +2,7 @@
 #  WAN 2.2 Image-to-Video Serverless Dockerfile (ComfyUI base)
 # ============================================================
 
-FROM nvidia/cuda:12.4.1-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
 
 # ---- Environment ----
 ENV DEBIAN_FRONTEND=noninteractive \
