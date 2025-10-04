@@ -23,6 +23,8 @@ RUN pip install --upgrade pip
 # ---- Torch & Base Deps ----
 RUN pip install torch==2.2.0+cu121 torchvision==0.17.0+cu121 --extra-index-url https://download.pytorch.org/whl/cu121
 RUN pip install runpod requests accelerate diffusers transformers safetensors moviepy websocket-client
+RUN pip install opencv-python-headless==4.10.0.84
+RUN pip install "numpy<2"
 
 # ---- ComfyUI ----
 WORKDIR /workspace
