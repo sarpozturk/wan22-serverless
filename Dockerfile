@@ -1,5 +1,5 @@
 # ---- Base CUDA Image ----
-FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.8.1-cudnn9-devel-ubuntu22.04
 
 # ---- Environment ----
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -21,24 +21,21 @@ ENV PATH="/venv/bin:$PATH"
 RUN pip install --upgrade pip
 
 # ---- Torch & Base Deps ----
-RUN pip install torch==2.2.0+cu121 torchvision==0.17.0+cu121 --extra-index-url https://download.pytorch.org/whl/cu121
-RUN pip install runpod requests accelerate diffusers transformers safetensors moviepy websocket-client
-RUN pip install opencv-python-headless==4.10.0.84
-RUN pip install "numpy<2"
+RUN pip install torch==2.4.1+cu124 torchvision==0.19.1+cu124 --extra-index-url https://download.pytorch.org/whl/cu124
+RUN pip install runpod requests accelerate diffusers transformers safetensors moviepy websocket-client opencv-python-headless "numpy<2"
 
 # ---- ComfyUI ----
 WORKDIR /workspace
-RUN git clone https://github.com/comfyanonymous/ComfyUI.git /workspace/ComfyUI
+RUN rm -rf /workspace/ComfyUI && \
+    git clone https://github.com/comfyanonymous/ComfyUI.git /workspace/ComfyUI
 WORKDIR /workspace/ComfyUI
 RUN pip install -r requirements.txt
-
-# 🔧 Pre-run once to generate frontend static files and DB
-RUN python main.py --disable-auto-launch --listen 0.0.0.0 --port 8188 || true
 
 # ---- Custom Nodes ----
 WORKDIR /workspace/ComfyUI/custom_nodes
 RUN git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
 RUN git clone https://github.com/kijai/ComfyUI-KJNodes.git
+RUN git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git
 
 # ---- Back to workspace ----
 WORKDIR /workspace
