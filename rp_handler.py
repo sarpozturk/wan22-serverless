@@ -7,6 +7,7 @@ import time
 
 COMFYUI_URL = "http://127.0.0.1:8188"
 
+
 def wait_for_comfyui():
     """Wait until ComfyUI backend is reachable."""
     while True:
@@ -19,6 +20,7 @@ def wait_for_comfyui():
             pass
         print("⏳ Waiting for ComfyUI backend...")
         time.sleep(2)
+
 
 def get_history(prompt_id):
     """Poll ComfyUI until workflow result is ready."""
@@ -34,11 +36,16 @@ def get_history(prompt_id):
             print("⏳ Waiting for result...", e)
         time.sleep(2)
 
+
 def handler(event):
     """Handle incoming RunPod request."""
     input_data = event.get("input", {})
-    prompt = input_data.get("prompt", "A beautiful futuristic Tokyo skyline")
+    prompt = input_data.get("prompt", "default")
     image_b64 = input_data.get("image")
+
+    # ❌ Prompt zorunlu
+    if not prompt:
+        return {"error": "Missing 'prompt' in input."}
 
     # workflow.json yükle
     with open("/workflow.json", "r") as f:
@@ -79,7 +86,8 @@ def handler(event):
         "images_base64": images[:1]  # sadece 1 tanesini döndür
     }
 
-if __name__ == "__main__":
-    wait_for_comfyui()
-    print("--- Starting Serverless Worker | Version 1.7.13 ---")
-    runpod.serverless.start({"handler": handler})
+
+# ✅ Serverless ortamda otomatik başlat
+print("--- Starting Serverless Worker | Version 1.7.13 ---")
+wait_for_comfyui()
+runpod.serverless.start({"handler": handler})

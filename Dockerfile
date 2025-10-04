@@ -1,7 +1,4 @@
-# ============================================================
-#  WAN 2.2 Image-to-Video Serverless Dockerfile (ComfyUI base)
-# ============================================================
-
+# ---- Base CUDA Image ----
 FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04
 
 # ---- Environment ----
@@ -13,7 +10,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # ---- Python & Tools ----
 RUN apt-get update && \
-    apt-get install -y python3.10 python3.10-venv python3.10-dev git curl ffmpeg && \
+    apt-get install -y python3.10 python3.10-venv python3.10-dev git curl ffmpeg libgl1 && \
     ln -sf /usr/bin/python3.10 /usr/bin/python && \
     ln -sf /usr/bin/python3.10 /usr/bin/python3 && \
     rm -rf /var/lib/apt/lists/*
@@ -23,14 +20,13 @@ RUN python3.10 -m venv /venv
 ENV PATH="/venv/bin:$PATH"
 RUN pip install --upgrade pip
 
-# ---- Torch + Deps ----
-RUN pip install torch==2.4.1+cu124 torchvision==0.19.1+cu124 torchaudio==2.4.1 --extra-index-url https://download.pytorch.org/whl/cu124
-RUN pip install runpod requests accelerate diffusers transformers safetensors moviepy websocket-client ftfy sageattention
+# ---- Torch & Base Deps ----
+RUN pip install torch==2.2.0+cu121 torchvision==0.17.0+cu121 --extra-index-url https://download.pytorch.org/whl/cu121
+RUN pip install runpod requests accelerate diffusers transformers safetensors moviepy websocket-client opencv-python
 
 # ---- ComfyUI ----
 WORKDIR /workspace
-RUN rm -rf /workspace/ComfyUI && \
-    git clone https://github.com/comfyanonymous/ComfyUI.git /workspace/ComfyUI
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /workspace/ComfyUI
 WORKDIR /workspace/ComfyUI
 RUN pip install -r requirements.txt
 
@@ -38,18 +34,19 @@ RUN pip install -r requirements.txt
 WORKDIR /workspace/ComfyUI/custom_nodes
 RUN git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git
 RUN git clone https://github.com/kijai/ComfyUI-KJNodes.git
-# WAN Video Wrapper Node (gerekli!)
-RUN git clone https://github.com/kijai/ComfyUI-WanVideoWrapper.git && \
-    cd ComfyUI-WanVideoWrapper && pip install -r requirements.txt || true
 
 # ---- Back to workspace ----
 WORKDIR /workspace
 
-# ---- Copy app files ----
-COPY workflow.json /workspace/workflow.json
-COPY rp_handler.py /workspace/rp_handler.py
-COPY start.sh /workspace/start.sh
-RUN chmod +x /workspace/start.sh
+# ---- Copy our files ----
+COPY ./workflow.json /workflow.json
+COPY ./rp_handler.py /rp_handler.py
+COPY ./start.sh /start.sh
 
+RUN chmod +x /start.sh
+
+# ---- Expose API ----
 EXPOSE 8188
-ENTRYPOINT ["/bin/bash", "/workspace/start.sh"]
+
+# ---- Start ----
+ENTRYPOINT ["/bin/bash", "/start.sh"]
