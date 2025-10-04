@@ -2,17 +2,17 @@
 set -e
 source /venv/bin/activate
 
-# ComfyUI'yi headless başlat
 cd /workspace/ComfyUI
-# --listen ve --port ile API aç, --disable-auto-launch ile tarayıcı yok
+echo "Starting ComfyUI..."
 python -u main.py --listen 0.0.0.0 --port 8188 --disable-auto-launch &
 
-# API hazır olana kadar bekle
-until curl -s http://127.0.0.1:8188/system_stats > /dev/null; do
-  echo "Waiting for ComfyUI..."
+# Health check – wait until ComfyUI backend is ready
+echo "Waiting for ComfyUI to start..."
+until curl -s http://127.0.0.1:8188/system_stats | grep -q '"cpu"'; do
+  echo "Still waiting for ComfyUI..."
   sleep 1
 done
 
-# handler
+echo "✅ ComfyUI is ready! Starting handler..."
 cd /workspace
 python -u rp_handler.py

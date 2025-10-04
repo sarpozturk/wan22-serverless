@@ -22,14 +22,16 @@ RUN pip install --upgrade pip
 
 # ---- Torch & Base Deps ----
 RUN pip install torch==2.2.0+cu121 torchvision==0.17.0+cu121 --extra-index-url https://download.pytorch.org/whl/cu121
-RUN pip install runpod requests accelerate diffusers transformers safetensors moviepy websocket-client opencv-python-headless==4.10.0.84
+RUN pip install runpod requests accelerate diffusers transformers safetensors moviepy websocket-client
 
 # ---- ComfyUI ----
 WORKDIR /workspace
-RUN rm -rf /workspace/ComfyUI && \
-    git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git /workspace/ComfyUI
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /workspace/ComfyUI
 WORKDIR /workspace/ComfyUI
 RUN pip install -r requirements.txt
+
+# 🔧 Pre-run once to generate frontend static files and DB
+RUN python main.py --disable-auto-launch --listen 0.0.0.0 --port 8188 || true
 
 # ---- Custom Nodes ----
 WORKDIR /workspace/ComfyUI/custom_nodes
@@ -40,13 +42,14 @@ RUN git clone https://github.com/kijai/ComfyUI-KJNodes.git
 WORKDIR /workspace
 
 # ---- Copy our files ----
-COPY ./workflow.json /workspace/workflow.json
-COPY ./rp_handler.py /workspace/rp_handler.py
-COPY ./start.sh /workspace/start.sh
-RUN chmod +x /workspace/start.sh
+COPY ./workflow.json /workflow.json
+COPY ./rp_handler.py /rp_handler.py
+COPY ./start.sh /start.sh
+
+RUN chmod +x /start.sh
 
 # ---- Expose API ----
 EXPOSE 8188
 
 # ---- Start ----
-ENTRYPOINT ["/bin/bash", "/workspace/start.sh"]
+ENTRYPOINT ["/bin/bash", "/start.sh"]
