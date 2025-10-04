@@ -1,5 +1,5 @@
 # ---- Base CUDA Image ----
-FROM nvidia/cuda:12.2.0-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
 # ---- Environment ----
 ENV DEBIAN_FRONTEND=noninteractive \
