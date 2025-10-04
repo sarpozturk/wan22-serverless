@@ -26,7 +26,8 @@ RUN pip install runpod requests accelerate diffusers transformers safetensors mo
 
 # ---- ComfyUI ----
 WORKDIR /workspace
-RUN git clone https://github.com/comfyanonymous/ComfyUI.git
+RUN rm -rf /workspace/ComfyUI && \
+    git clone https://github.com/comfyanonymous/ComfyUI.git /workspace/ComfyUI
 WORKDIR /workspace/ComfyUI
 RUN pip install -r requirements.txt
 
