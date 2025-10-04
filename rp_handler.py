@@ -1,58 +1,85 @@
 import runpod
 import requests
 import base64
-import time
-import os
 import json
+import os
+import time
 
-COMFY_API = "http://127.0.0.1:8188"
+COMFYUI_URL = "http://127.0.0.1:8188"
 
-# ComfyUI'de yüklü workflow'u çağırır
-def run_workflow(image_b64: str):
-    # Görseli input klasörüne kaydet
-    os.makedirs("/workspace/input", exist_ok=True)
-    input_path = "/workspace/input/input.png"
-    with open(input_path, "wb") as f:
-        f.write(base64.b64decode(image_b64))
+def wait_for_comfyui():
+    """Wait until ComfyUI backend is reachable."""
+    while True:
+        try:
+            r = requests.get(f"{COMFYUI_URL}/system_stats")
+            if r.status_code == 200:
+                print("✅ ComfyUI backend is ready.")
+                break
+        except Exception:
+            pass
+        print("⏳ Waiting for ComfyUI backend...")
+        time.sleep(2)
 
-    # Workflow'u oku
-    with open("/workspace/workflow.json", "r") as f:
+def get_history(prompt_id):
+    """Poll ComfyUI until workflow result is ready."""
+    while True:
+        try:
+            res = requests.get(f"{COMFYUI_URL}/history/{prompt_id}")
+            if res.status_code == 200:
+                data = res.json()
+                if data.get(prompt_id):
+                    print("🟢 Workflow complete.")
+                    return data[prompt_id]
+        except Exception as e:
+            print("⏳ Waiting for result...", e)
+        time.sleep(2)
+
+def handler(event):
+    """Handle incoming RunPod request."""
+    input_data = event.get("input", {})
+    prompt = input_data.get("prompt", "A beautiful futuristic Tokyo skyline")
+    image_b64 = input_data.get("image")
+
+    # workflow.json yükle
+    with open("/workflow.json", "r") as f:
         workflow = json.load(f)
 
-    # İlk node'un input'una dosya path'i ekle
-    for node_id, node in workflow["nodes"].items():
-        if "input_image" in node.get("inputs", {}):
-            node["inputs"]["input_image"] = input_path
+    # workflow içindeki text input'u değiştir
+    for node_id, node in workflow.items():
+        if node.get("class_type") in ["CLIPTextEncode", "Text"]:
+            if "inputs" in node and "text" in node["inputs"]:
+                node["inputs"]["text"] = prompt
 
-    # Gönder
-    res = requests.post(f"{COMFY_API}/prompt", json={"prompt": workflow})
+    # ComfyUI'ye gönder
+    print(f"🚀 Sending prompt to ComfyUI: {prompt}")
+    res = requests.post(f"{COMFYUI_URL}/prompt", json={"prompt": workflow})
     prompt_id = res.json().get("prompt_id")
 
-    # İş bitene kadar bekle
-    while True:
-        time.sleep(2)
-        history = requests.get(f"{COMFY_API}/history/{prompt_id}").json()
-        if prompt_id in history and "outputs" in history[prompt_id]:
-            outputs = history[prompt_id]["outputs"]
-            for node in outputs.values():
-                if "output" in node:
-                    file_name = node["output"]["images"][0]["filename"]
-                    file_path = f"/workspace/ComfyUI/output/{file_name}"
-                    if os.path.exists(file_path):
-                        with open(file_path, "rb") as f:
-                            return base64.b64encode(f.read()).decode()
-        print("⏳ Waiting for result...")
+    if not prompt_id:
+        return {"error": "Failed to get prompt_id", "response": res.text}
 
-# RunPod handler
-def handler(event):
-    image_b64 = event["input"].get("image")
-    if not image_b64:
-        return {"error": "No input image provided."}
+    # Sonucu bekle
+    result = get_history(prompt_id)
 
-    try:
-        output_b64 = run_workflow(image_b64)
-        return {"video_base64": output_b64}
-    except Exception as e:
-        return {"error": str(e)}
+    # İlk çıktıyı al
+    outputs = result.get("outputs", {})
+    images = []
+    for node_id, node_output in outputs.items():
+        if "images" in node_output:
+            for img in node_output["images"]:
+                img_path = os.path.join("/workspace/ComfyUI/output", img["filename"])
+                if os.path.exists(img_path):
+                    with open(img_path, "rb") as f:
+                        images.append(base64.b64encode(f.read()).decode("utf-8"))
 
-runpod.serverless.start({"handler": handler})
+    return {
+        "status": "success",
+        "prompt": prompt,
+        "num_images": len(images),
+        "images_base64": images[:1]  # sadece 1 tanesini döndür
+    }
+
+if __name__ == "__main__":
+    wait_for_comfyui()
+    print("--- Starting Serverless Worker | Version 1.7.13 ---")
+    runpod.serverless.start({"handler": handler})
